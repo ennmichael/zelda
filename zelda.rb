@@ -9,52 +9,58 @@ require_relative 'logic'
 module Zelda
   # Game resources. Currently only holds sprites.
   module Resources
+    SPRITE_SCALE = 3
+    SPRITE_SIZE = 16 * SPRITE_SCALE
+
+    private_constant :SPRITE_SCALE
+
     # Link's sprites.
     class LinkSprites
       WALK_ANIMATION_SPEED = 0.005
       WALK_TILES = 4
-      SCALE = 3
 
-      private_constant :WALK_ANIMATION_SPEED, :SCALE
+      private_constant :WALK_ANIMATION_SPEED, :WALK_TILES
 
       def initialize
         @walk = Gosu::Image.load_tiles 'media/link_walk.bmp', -WALK_TILES, -1
+        @last_sprite = @walk.first
+        @last_scale = SPRITE_SCALE
       end
 
-      def sprite_width
-        @walk.first.width * SCALE
-      end
-
-      def sprite_height
-        @walk.first.height * SCALE
-      end
-
-      def draw_walking_up(x, y)
+      def draw_facing_up(x, y)
         Contracts.position x, y
 
-        scale_x = ((Gosu.milliseconds * WALK_ANIMATION_SPEED).round % 2).zero? ? SCALE : -SCALE
-        sprite_walk_up.draw_rot x, y, 0, 0, 0.5, 0.5, scale_x, SCALE
+        @last_sprite = sprite_walk_up
+        @last_scale = ((Gosu.milliseconds * WALK_ANIMATION_SPEED).round % 2).zero? ? SPRITE_SCALE : -SPRITE_SCALE
+        draw_last x, y
       end
 
-      def draw_walking_down(x, y)
+      def draw_facing_down(x, y)
         Contracts.position x, y
 
-        scale_x = ((Gosu.milliseconds * WALK_ANIMATION_SPEED).round % 2).zero? ? SCALE : -SCALE
-        sprite_walk_down.draw_rot x, y, 0, 0, 0.5, 0.5, scale_x, SCALE
+        @last_sprite = sprite_walk_down
+        @last_scale = ((Gosu.milliseconds * WALK_ANIMATION_SPEED).round % 2).zero? ? SPRITE_SCALE : -SPRITE_SCALE
+        draw_last x, y
       end
 
-      def draw_walking_left(x, y)
+      def draw_facing_left(x, y)
         Contracts.position x, y
 
-        sprite = sprites_walk_left[Gosu.milliseconds * WALK_ANIMATION_SPEED % 2]
-        sprite.draw_rot x, y, 0, 0, 0.5, 0.5, SCALE, SCALE
+        @last_sprite = sprites_walk_left[Gosu.milliseconds * WALK_ANIMATION_SPEED % 2]
+        @last_scale = SPRITE_SCALE
+        draw_last x, y
       end
 
-      def draw_walking_right(x, y)
+      def draw_facing_right(x, y)
         Contracts.position x, y
 
-        sprite = sprites_walk_left[Gosu.milliseconds * WALK_ANIMATION_SPEED % 2]
-        sprite.draw_rot x, y, 0, 0, 0.5, 0.5, -SCALE, SCALE
+        @last_sprite = sprites_walk_left[Gosu.milliseconds * WALK_ANIMATION_SPEED % 2]
+        @last_scale = -SPRITE_SCALE
+        draw_last x, y
+      end
+
+      def draw_last(x, y)
+        @last_sprite.draw_rot x, y, 0, 0, 0.5, 0.5, @last_scale, SPRITE_SCALE
       end
 
       private
@@ -76,11 +82,13 @@ module Zelda
     end
   end
 
-  # TODO: I need a change in naming, both are called link and that's odd
-
-  # Link is the main character.
+  # LinkRendering is a rendering of the Link character.
   class LinkRendering
+    MOVEMENT_SPEED = 1.5
+
     attr_reader :direction
+
+    private_constant :MOVEMENT_SPEED
 
     def initialize(grid, entity)
       Contracts.not_nil grid
@@ -91,40 +99,44 @@ module Zelda
       @grid = grid
       @entity = entity
       @sprites = Resources::LinkSprites.new
-      @x, @y = expected_position
+      @x, @y = target_position
     end
 
     def update(requested_direction)
       Contracts.direction requested_direction
 
-      x, y = expected_position
+      x, y = target_position
       if @x == x && @y == y
         update_still requested_direction
       else
-        update_moving x, y, requested_direction
+        update_moving x, y
       end
     end
 
     def draw
       case direction
       when :up
-        @sprites.draw_walking_up @x, @y
+        @sprites.draw_facing_up @x, @y
       when :down
-        @sprites.draw_walking_down @x, @y
+        @sprites.draw_facing_down @x, @y
       when :left
-        @sprites.draw_walking_left @x, @y
+        @sprites.draw_facing_left @x, @y
       when :right
-        @sprites.draw_walking_right @x, @y
+        @sprites.draw_facing_right @x, @y
+      else
+        @sprites.draw_last @x, @y
       end
     end
 
     private
 
+    # TODO: I don't need this. Direction can be determined entirely by looking at current vs target position
     attr_writer :direction
 
-    def expected_position
+    def target_position
       x, y = @grid.position_of @entity
-      [x * @sprites.sprite_width, y * @sprites.sprite_height] unless x.nil? || y.nil?
+      s = Resources::SPRITE_SIZE
+      [x * s + s / 2, y * s + s / 2] unless x.nil? || y.nil?
     end
 
     def update_still(requested_direction)
@@ -133,8 +145,22 @@ module Zelda
       self.direction = requested_direction
     end
 
-    def update_moving(requested_direction, target_x, target_y)
-      # TODO: Move from the current to target position, not going too far, taking direction into account
+    def update_moving(target_x, target_y)
+      advance_toward target_x, target_y
+      self.direction = nil if @x == target_x && @y == target_y
+    end
+
+    def advance_toward(target_x, target_y)
+      case direction
+      when :up
+        @y = [@y - MOVEMENT_SPEED, target_y].max
+      when :down
+        @y = [@y + MOVEMENT_SPEED, target_y].min
+      when :left
+        @x = [@x - MOVEMENT_SPEED, target_x].max
+      when :right
+        @x = [@x + MOVEMENT_SPEED, target_x].min
+      end
     end
   end
 
@@ -146,7 +172,7 @@ module Zelda
 
       @grid = Logic::Grid.new
       @link = Logic::Link.new
-      @grid.create @link, 1, 1
+      @grid.create @link, 0, 0
       @link_rendering = LinkRendering.new @grid, @link
     end
 
