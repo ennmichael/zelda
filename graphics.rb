@@ -7,7 +7,7 @@ module Zelda
     class Sprite
       attr_reader :duration_ms
 
-      def initialize(image, scale_x, scale_y, duration_ms)
+      def initialize(image, scale_x, scale_y, duration_ms = Float::INFINITY)
         Contracts.not_nil image
         Contracts.not_nil scale_x
         Contracts.not_nil scale_y
@@ -39,7 +39,7 @@ module Zelda
     # An animation is a set of sprites playing in a loop.
     # Animations have state and can change sprites.
     class Animation
-      def initialize(animation_map)
+      def initialize(**animation_map)
         animation_map.each_pair do |key, value|
           Contracts.not_nil key
           Contracts.not_nil value

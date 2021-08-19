@@ -26,18 +26,28 @@ module Zelda
           Graphics::Sprite.new tile, SPRITE_SCALE, SPRITE_SCALE, 100
         end
 
-        Graphics::Animation.new(
-          {
-            walk_left: [left1, left0],
-            walk_right: [left1.flipped, left0.flipped],
-            walk_up: [up, up.flipped],
-            walk_down: [down, down.flipped],
-            idle_left: [left0.infinite],
-            idle_right: [left0.flipped.infinite],
-            idle_up: [up.flipped.infinite],
-            idle_down: [down.flipped.infinite]
-          }
-        )
+        Graphics::Animation.new walk_left: [left1, left0],
+                                walk_right: [left1.flipped, left0.flipped],
+                                walk_up: [up, up.flipped],
+                                walk_down: [down, down.flipped],
+                                idle_left: [left0.infinite],
+                                idle_right: [left0.flipped.infinite],
+                                idle_up: [up.flipped.infinite],
+                                idle_down: [down.flipped.infinite]
+      end
+
+      def block_animation
+        Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles.first, SPRITE_SCALE, SPRITE_SCALE)]
+      end
+
+      def movable_block
+        Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles[1], SPRITE_SCALE, SPRITE_SCALE)]
+      end
+
+      private
+
+      def block_tiles
+        @block_tiles ||= Gosu::Image.load_tiles('media/blocks.bmp', -2, -1)
       end
     end
   end
@@ -127,6 +137,32 @@ module Zelda
     end
   end
 
+  # A rendering of the immovable blocks.
+  class BlocksRendering
+    def initialize(grid)
+      Contracts.not_nil grid
+      Contracts.is grid, Logic::Grid
+
+      @grid = grid
+      @animation = Resources.block_animation
+    end
+
+    def draw
+      @grid.position_of_all(Logic::Block).each do |x, y|
+        draw_single x, y
+      end
+    end
+
+    private
+
+    def draw_single(x, y)
+      s = Resources::SPRITE_SIZE
+      x = x * s + s / 2
+      y = y * s + s / 2
+      @animation.draw x, y
+    end
+  end
+
   # The game window.
   class Application < Gosu::Window
     def initialize
@@ -135,8 +171,13 @@ module Zelda
 
       @grid = Logic::Grid.new
       @link = Logic::Link.new
+
       @grid.create @link, 0, 0
+      @grid.create Logic::Block.new, 0, 1
+      @grid.create Logic::Block.new, 1, 1
+
       @link_rendering = LinkRendering.new @grid, @link
+      @blocks_rendering = BlocksRendering.new @grid
     end
 
     def update
@@ -157,6 +198,7 @@ module Zelda
 
     def draw
       @link_rendering.draw
+      @blocks_rendering.draw
     end
   end
 end

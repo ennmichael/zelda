@@ -12,6 +12,7 @@ GEM
       rexml
     kramdown-parser-gfm (1.1.0)
       kramdown (~> 2.0)
+    minitest (5.14.4)
     nokogiri (1.12.3-x86_64-linux)
       racc (~> 1.4)
     parallel (1.20.1)
@@ -19,6 +20,7 @@ GEM
       ast (~> 2.4.1)
     racc (1.5.2)
     rainbow (3.0.0)
+    rake (13.0.6)
     regexp_parser (2.1.1)
     reverse_markdown (2.0.0)
       nokogiri
@@ -60,6 +62,8 @@ PLATFORMS
 
 DEPENDENCIES
   gosu
+  minitest
+  rake
   solargraph
 
 BUNDLED WITH
