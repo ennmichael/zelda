@@ -94,7 +94,7 @@ module Zelda
       end
 
       def within_bounds(x, y)
-        (0..SIZE).include?(x) && (0..SIZE).include?(y)
+        (0...SIZE).include?(x) && (0...SIZE).include?(y)
       end
 
       # TODO: I could unify these and use symbols, but I feel like something similar must already exist

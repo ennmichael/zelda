@@ -17,23 +17,37 @@ module Zelda
 
     class << self
       def link_animation
-        tiles = Gosu::Image.load_tiles('media/link_walk.bmp', -4, -1)
+        walk_tiles = Gosu::Image.load_tiles('media/link_walk.bmp', -4, -1)
+        push_tiles = Gosu::Image.load_tiles('media/link_push.bmp', -6, -1)
 
-        down, up = tiles[0..1].map do |tile|
+        walk_down, walk_up = walk_tiles[0..1].map do |tile|
           Graphics::Sprite.new tile, SPRITE_SCALE, SPRITE_SCALE, 130
         end
-        left0, left1 = tiles[2..3].map do |tile|
+        walk_left0, walk_left1 = walk_tiles[2..3].map do |tile|
           Graphics::Sprite.new tile, SPRITE_SCALE, SPRITE_SCALE, 100
         end
 
-        Graphics::Animation.new walk_left: [left1, left0],
-                                walk_right: [left1.flipped, left0.flipped],
-                                walk_up: [up, up.flipped],
-                                walk_down: [down, down.flipped],
-                                idle_left: [left0.infinite],
-                                idle_right: [left0.flipped.infinite],
-                                idle_up: [up.flipped.infinite],
-                                idle_down: [down.flipped.infinite]
+        push_down0, push_down1, push_up0, push_up1 = push_tiles[0..3].map do |tile|
+          Graphics::Sprite.new tile, SPRITE_SCALE, SPRITE_SCALE, 130
+        end
+        push_left0, push_left1 = push_tiles[4..5].map do |tile|
+          Graphics::Sprite.new tile, SPRITE_SCALE, SPRITE_SCALE, 100
+        end
+        push_right0 = push_left0.flipped
+        push_right1 = push_left1.flipped
+
+        Graphics::Animation.new walk_left: [walk_left1, walk_left0],
+                                walk_right: [walk_left1.flipped, walk_left0.flipped],
+                                walk_up: [walk_up, walk_up.flipped],
+                                walk_down: [walk_down, walk_down.flipped],
+                                idle_left: [walk_left0.infinite],
+                                idle_right: [walk_left0.flipped.infinite],
+                                idle_up: [walk_up.flipped.infinite],
+                                idle_down: [walk_down.flipped.infinite],
+                                push_left: [push_left0, push_left1],
+                                push_right: [push_right0, push_right1],
+                                push_up: [push_up0, push_up1],
+                                push_down: [push_down0, push_down1]
       end
 
       def block_animation
@@ -155,16 +169,13 @@ module Zelda
     end
 
     def update_animation
-      case @last_direction
-      when :up
-        @animation.set(moving ? :walk_up : :idle_up)
-      when :down
-        @animation.set(moving ? :walk_down : :idle_down)
-      when :left
-        @animation.set(moving ? :walk_left : :idle_left)
-      when :right
-        @animation.set(moving ? :walk_right : :idle_right)
-      end
+      prefix = if moving
+                 @entity.pushed ? 'push' : 'walk'
+               else
+                 'idle'
+               end
+
+      @animation.set("#{prefix}_#{@last_direction}".to_sym)
     end
   end
 
@@ -197,7 +208,8 @@ module Zelda
   # The game window.
   class Application < Gosu::Window
     def initialize
-      super 600, 600
+      window_size = Resources::SPRITE_SIZE * Logic::Grid::SIZE
+      super window_size, window_size
       self.caption = 'Zelda'
 
       @grid = Logic::Grid.new
