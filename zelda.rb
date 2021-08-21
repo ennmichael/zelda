@@ -40,7 +40,7 @@ module Zelda
         Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles.first, SPRITE_SCALE, SPRITE_SCALE)]
       end
 
-      def movable_block
+      def movable_block_animation
         Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles[1], SPRITE_SCALE, SPRITE_SCALE)]
       end
 
@@ -58,17 +58,16 @@ module Zelda
 
     private_constant :MOVEMENT_SPEED
 
-    def initialize(**args)
-      Contracts.not_nil args[:grid]
-      Contracts.not_nil args[:entity]
-      Contracts.not_nil args[:animation]
-      Contracts.is args[:grid], Logic::Grid
-      Contracts.is args[:entity], Logic::Link
-      Contracts.is args[:animation], Graphics::Animation
+    def initialize(grid, entity, animation)
+      Contracts.not_nil grid
+      Contracts.not_nil entity
+      Contracts.not_nil animation
+      Contracts.is grid, Logic::Grid
+      Contracts.is animation, Graphics::Animation
 
-      @grid = args[:grid]
-      @entity = args[:entity]
-      @animation = args[:animation]
+      @grid = grid
+      @entity = entity
+      @animation = animation
       @x, @y = target_position
     end
 
@@ -135,7 +134,7 @@ module Zelda
       Contracts.is grid, Logic::Grid
       Contracts.is entity, Logic::Link
 
-      super grid: grid, entity: entity, animation: Resources.link_animation
+      super grid, entity, Resources.link_animation
       @last_direction = :right
     end
 
@@ -203,17 +202,21 @@ module Zelda
 
       @grid = Logic::Grid.new
       @link = Logic::Link.new
+      @movable_block = Logic::MovableBlock.new
 
       @grid.create @link, 0, 0
       @grid.create Logic::Block.new, 0, 1
       @grid.create Logic::Block.new, 1, 1
+      @grid.create @movable_block, 2, 1
 
       @link_rendering = LinkRendering.new @grid, @link
       @blocks_rendering = BlocksRendering.new @grid
+      @movable_block_rendering = MovementRendering.new @grid, @movable_block, Resources.movable_block_animation
     end
 
     def update
       @link_rendering.update requested_direction
+      @movable_block_rendering.update
     end
 
     def requested_direction
@@ -231,6 +234,7 @@ module Zelda
     def draw
       @link_rendering.draw
       @blocks_rendering.draw
+      @movable_block_rendering.draw
     end
   end
 end
