@@ -52,75 +52,65 @@ module Zelda
     end
   end
 
-  # LinkRendering is a rendering of the Link character.
-  class LinkRendering
+  # A mixin for rendeing movements with a special animation.
+  class MovementRendering
     MOVEMENT_SPEED = 1.5
-
-    attr_reader :direction
 
     private_constant :MOVEMENT_SPEED
 
-    def initialize(grid, entity)
-      Contracts.not_nil grid
-      Contracts.not_nil entity
-      Contracts.is grid, Logic::Grid
-      Contracts.is entity, Logic::Link
+    def initialize(**args)
+      Contracts.not_nil args[:grid]
+      Contracts.not_nil args[:entity]
+      Contracts.not_nil args[:animation]
+      Contracts.is args[:grid], Logic::Grid
+      Contracts.is args[:entity], Logic::Link
+      Contracts.is args[:animation], Graphics::Animation
 
-      @grid = grid
-      @entity = entity
-      @animation = Resources.link_animation
+      @grid = args[:grid]
+      @entity = args[:entity]
+      @animation = args[:animation]
       @x, @y = target_position
-      self.direction = :right
-      @walking = false
     end
 
-    def update(requested_direction)
-      Contracts.direction requested_direction
-
+    def update
       x, y = target_position
-      if @x == x && @y == y
-        update_still requested_direction
-      else
-        update_moving x, y
-      end
+      advance_toward x, y if moving
     end
 
     def draw
-      case direction
-      when :up
-        @animation.set(@walking ? :walk_up : :idle_up)
-      when :down
-        @animation.set(@walking ? :walk_down : :idle_down)
-      when :left
-        @animation.set(@walking ? :walk_left : :idle_left)
-      when :right
-        @animation.set(@walking ? :walk_right : :idle_right)
-      end
-
       @animation.draw @x, @y
     end
 
     private
 
-    attr_writer :direction
+    def moving
+      x, y = target_position
+      @x != x || @y != y
+    end
+
+    def direction
+      x, y = target_position
+
+      if @x < x
+        :right
+      elsif x < @x
+        :left
+      elsif @y < y
+        :down
+      elsif y < @y
+        :up
+      end
+    end
 
     def target_position
       x, y = @grid.position_of @entity
       s = Resources::SPRITE_SIZE
-      [x * s + s / 2, y * s + s / 2] unless x.nil? || y.nil?
-    end
 
-    def update_still(requested_direction)
-      @walking = false
-      return if requested_direction.nil? || !@grid.move(@entity, requested_direction)
-
-      @walking = true
-      self.direction = requested_direction
-    end
-
-    def update_moving(target_x, target_y)
-      @walking = false if @x == target_x && @y == target_y
-      advance_toward target_x, target_y
+      if x.nil? || y.nil?
+        [nil, nil]
+      else
+        [x * s + s / 2, y * s + s / 2]
+      end
     end
 
     def advance_toward(target_x, target_y)
@@ -137,7 +127,49 @@ module Zelda
     end
   end
 
-  # A rendering of the immovable blocks.
+  # LinkRendering is a rendering of the Link character.
+  class LinkRendering < MovementRendering
+    def initialize(grid, entity)
+      Contracts.not_nil grid
+      Contracts.not_nil entity
+      Contracts.is grid, Logic::Grid
+      Contracts.is entity, Logic::Link
+
+      super grid: grid, entity: entity, animation: Resources.link_animation
+      @last_direction = :right
+    end
+
+    def update(requested_direction)
+      Contracts.direction requested_direction
+
+      request_direction requested_direction
+      update_animation
+      super()
+    end
+
+    private
+
+    def request_direction(requested_direction)
+      return if moving || requested_direction.nil? || !@grid.move(@entity, requested_direction)
+
+      @last_direction = direction
+    end
+
+    def update_animation
+      case @last_direction
+      when :up
+        @animation.set(moving ? :walk_up : :idle_up)
+      when :down
+        @animation.set(moving ? :walk_down : :idle_down)
+      when :left
+        @animation.set(moving ? :walk_left : :idle_left)
+      when :right
+        @animation.set(moving ? :walk_right : :idle_right)
+      end
+    end
+  end
+
+  # A rendering of all immovable blocks.
   class BlocksRendering
     def initialize(grid)
       Contracts.not_nil grid
