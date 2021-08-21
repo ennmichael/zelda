@@ -65,5 +65,17 @@ class PushingBlocksTest < Minitest::Test
   end
 
   def test_pushed_set_properly
+    @grid.create @link, 1, 1
+    @grid.create @movable_block, 2, 1
+
+    success = @grid.move @link, :right
+
+    assert success
+    assert @link.pushed
+
+    success = @grid.move @link, :down
+
+    assert success
+    assert !@link.pushed
   end
 end
