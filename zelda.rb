@@ -17,7 +17,7 @@ module Zelda
 
     class << self
       def link_animation
-        walk_tiles = Gosu::Image.load_tiles('media/link_walk.bmp', -4, -1)
+        walk_tiles = Gosu::Image.load_tiles('media/link_walk.bmp', -6, -1)
         push_tiles = Gosu::Image.load_tiles('media/link_push.bmp', -6, -1)
 
         walk_down, walk_up = walk_tiles[0..1].map do |tile|
@@ -26,6 +26,9 @@ module Zelda
         walk_left0, walk_left1 = walk_tiles[2..3].map do |tile|
           Graphics::Sprite.new tile, SPRITE_SCALE, SPRITE_SCALE, 100
         end
+
+        idle_down = Graphics::Sprite.new walk_tiles[4], SPRITE_SCALE, SPRITE_SCALE
+        idle_up = Graphics::Sprite.new walk_tiles[5], SPRITE_SCALE, SPRITE_SCALE
 
         push_down0, push_down1, push_up0, push_up1 = push_tiles[0..3].map do |tile|
           Graphics::Sprite.new tile, SPRITE_SCALE, SPRITE_SCALE, 130
@@ -42,8 +45,8 @@ module Zelda
                                 walk_down: [walk_down, walk_down.flipped],
                                 idle_left: [walk_left0.infinite],
                                 idle_right: [walk_left0.flipped.infinite],
-                                idle_up: [walk_up.flipped.infinite],
-                                idle_down: [walk_down.flipped.infinite],
+                                idle_up: [idle_up],
+                                idle_down: [idle_down],
                                 push_left: [push_left0, push_left1],
                                 push_right: [push_right0, push_right1],
                                 push_up: [push_up0, push_up1],
@@ -51,11 +54,11 @@ module Zelda
       end
 
       def block_animation
-        Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles.first, SPRITE_SCALE, SPRITE_SCALE)]
+        Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles[1], SPRITE_SCALE, SPRITE_SCALE)]
       end
 
       def movable_block_animation
-        Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles[1], SPRITE_SCALE, SPRITE_SCALE)]
+        Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles.first, SPRITE_SCALE, SPRITE_SCALE)]
       end
 
       private
@@ -169,13 +172,13 @@ module Zelda
     end
 
     def update_animation
-      prefix = if moving
-                 @entity.pushed ? 'push' : 'walk'
-               else
-                 'idle'
-               end
+      sprite_prefix = if moving
+                        @entity.pushed ? 'push' : 'walk'
+                      else
+                        'idle'
+                      end
 
-      @animation.set("#{prefix}_#{@last_direction}".to_sym)
+      @animation.set("#{sprite_prefix}_#{@last_direction}".to_sym)
     end
   end
 
