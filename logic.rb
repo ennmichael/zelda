@@ -17,45 +17,39 @@ module Zelda
       end
 
       def delta_for_direction(direction)
-        @lookup ||= {
+        Contracts.not_nil direction
+        Contracts.direction direction
+
+        @delta_for_direction_lookup ||= {
           up: [0, -1],
           down: [0, 1],
           left: [-1, 0],
           right: [1, 0]
         }
-        @lookup[direction]
+        @delta_for_direction_lookup[direction]
+      end
+
+      def within_bounds(x, y)
+        Contracts.position x, y
+
+        (0...GRID_SIZE).include?(x) && (0...GRID_SIZE).include?(y)
+      end
+
+      def opposite_direction(direction)
+        Contracts.direction direction
+
+        @opposite_direction_lookup ||= {
+          up: :down,
+          down: :up,
+          left: :right,
+          right: :left
+        }
+        @opposite_direction_lookup[direction]
       end
     end
 
     # The Game of Zelda.
     class Game
-      def link_position
-        @grid.position_of @link
-      end
-
-      def link_pushed
-        @link.pushed
-      end
-
-      def block_positions
-        @grid.position_of_all Block
-      end
-
-      def pushable_block_positions
-        @grid.position_of_all PushableBlock
-      end
-
-      def pushable_block_positions_hash
-        @grid.positions_hash PushableBlock
-      end
-
-      def request_link_direction(direction)
-        Contracts.not_nil direction
-        Contracts.direction direction
-
-        @link_movement_updater.request_direction direction
-      end
-
       # The constructor expects the following hash keys: link_position, zol_position,
       # block_positions, pushable_block_positions. All are optional.
       def initialize(**args)
@@ -97,6 +91,37 @@ module Zelda
         create_blocks.call PushableBlock, args[:pushable_block_positions] unless args[:pushable_block_positions].nil?
       end
 
+      def link_position
+        @grid.position_of @link
+      end
+
+      def zol_position
+        @grid.position_of @zol
+      end
+
+      def link_pushed
+        @link.pushed
+      end
+
+      def block_positions
+        @grid.position_of_all Block
+      end
+
+      def pushable_block_positions
+        @grid.position_of_all PushableBlock
+      end
+
+      def pushable_block_positions_hash
+        @grid.positions_hash PushableBlock
+      end
+
+      def request_link_direction(direction)
+        Contracts.not_nil direction
+        Contracts.direction direction
+
+        @link_movement_updater.request_direction direction
+      end
+
       def update
         @updaters.each(&:update)
       end
@@ -116,8 +141,7 @@ module Zelda
       def create(obj, x, y)
         Contracts.not_nil obj
         Contracts.position x, y
-        Contracts.includes x, (0..GRID_SIZE)
-        Contracts.includes y, (0..GRID_SIZE)
+        Contracts.condition Logic.within_bounds(x, y), 'position must be within bounds'
 
         @grid[y][x] = obj
       end
@@ -137,7 +161,7 @@ module Zelda
         new_x = x + dx
         new_y = y + dy
 
-        return false unless within_bounds(new_x, new_y) && @grid[new_y][new_x].nil?
+        return false unless Logic.within_bounds(new_x, new_y) && @grid[new_y][new_x].nil?
 
         @grid[new_y][new_x] = @grid[y][x]
         @grid[y][x] = nil
@@ -166,10 +190,6 @@ module Zelda
 
         entities.select { |e| e.obj.is_a? cls }
                 .map { |e| [e.x, e.y] }
-      end
-
-      def within_bounds(x, y)
-        (0...GRID_SIZE).include?(x) && (0...GRID_SIZE).include?(y)
       end
 
       # Returns a hash mapping object id's of the given class to their respective positions.
@@ -279,16 +299,53 @@ module Zelda
           Contracts.not_nil grid
           Contracts.not_nil zol
           Contracts.is grid, Grid
-          Contracts.is link, Zol
+          Contracts.is zol, Zol
 
           @grid = grid
           @zol = zol
         end
 
         def update
-          # TODO: If the direction is nil, pick one at "random". "Random" means random direction that is free.
-          # With each move have a 1/3 or sth chance of changing the direction. Also change direction if you run
-          # into solid terrain.
+          @direction = next_direction
+          @grid.move @zol, @direction
+        end
+
+        private
+
+        def next_direction
+          direction_pool.sample
+        end
+
+        def direction_pool
+          directions = %i[left right up down].select { |d| direction_valid(d) }
+          directions_without_opposite = directions.reject { |d| d == Logic.opposite_direction(@direction) }
+          directions_without_opposite.empty? ? directions : weighted(directions_without_opposite)
+        end
+
+        # Ensures a 2/3 chance that Zol keeps moving in the same direction.
+        def weighted(directions)
+          return directions unless directions.include? @direction
+
+          case directions.length
+          when 2
+            [*directions, @direction]
+          when 3
+            [*directions, *Array.new(3, @direction)]
+          else
+            directions
+          end
+        end
+
+        def direction_valid(direction)
+          dx, dy = Logic.delta_for_direction direction
+          x, y = @grid.position_of @zol
+          new_x = x + dx
+          new_y = y + dy
+          Logic.within_bounds(new_x, new_y) && position_available(new_x, new_y)
+        end
+
+        def position_available(x, y)
+          @grid.object_at(x, y).nil?
         end
       end
     end

@@ -25,6 +25,10 @@ module Zelda
         raise "#{value} in not in #{range}" unless value.nil? || range.include?(value)
       end
 
+      def condition(bool, msg)
+        raise "Condition failed: #{msg}" unless bool
+      end
+
       def is(obj, type)
         raise "#{obj} is not an instance of #{type}" unless obj.nil? || obj.is_a?(type)
       end
