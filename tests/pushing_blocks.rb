@@ -5,77 +5,65 @@ require_relative '../logic'
 
 # Tests simple moving functionality in the presence of only one object on the grid.
 class PushingBlocksTest < Minitest::Test
-  def setup
-    @link = Zelda::Logic::Link.new
-    @block = Zelda::Logic::Block.new
-    @movable_block = Zelda::Logic::MovableBlock.new
-    @grid = Zelda::Logic::Grid.new
-  end
-
   def test_simple_push
-    @grid.create @link, 1, 1
-    @grid.create @movable_block, 2, 1
+    game = Zelda::Logic::Game.new link_position: [1, 1], pushable_block_positions: [[2, 1]]
 
-    success = @grid.move @link, :right
-    link_x, link_y = @grid.position_of @link
-    movable_block_x, movable_block_y = @grid.position_of @movable_block
+    game.request_link_direction :right
+    game.update
+    link_x, link_y = game.link_position
+    pushable_block_x, pushable_block_y = game.pushable_block_positions.first
 
-    assert success
-    assert @link.pushed
+    assert game.link_pushed
     assert_equal 2, link_x
     assert_equal 1, link_y
-    assert_equal 3, movable_block_x
-    assert_equal 1, movable_block_y
+    assert_equal 3, pushable_block_x
+    assert_equal 1, pushable_block_y
   end
 
   def test_cant_push_out_of_bounds
-    @grid.create @link, 1, 1
-    @grid.create @movable_block, 0, 1
+    game = Zelda::Logic::Game.new link_position: [1, 1], pushable_block_positions: [[0, 1]]
 
-    success = @grid.move @link, :left
-    link_x, link_y = @grid.position_of @link
-    movable_block_x, movable_block_y = @grid.position_of @movable_block
+    game.request_link_direction :left
+    game.update
+    link_x, link_y = game.link_position
+    pushable_block_x, pushable_block_y = game.pushable_block_positions.first
 
-    assert !success
-    assert !@link.pushed
+    assert !game.link_pushed
     assert_equal 1, link_x
     assert_equal 1, link_y
-    assert_equal 0, movable_block_x
-    assert_equal 1, movable_block_y
+    assert_equal 0, pushable_block_x
+    assert_equal 1, pushable_block_y
   end
 
   def test_cant_push_into_solid_block
-    @grid.create @link, 1, 1
-    @grid.create @movable_block, 2, 1
-    @grid.create @block, 3, 1
+    game = Zelda::Logic::Game.new link_position: [1, 1], block_positions: [[3, 1]], pushable_block_positions: [[2, 1]]
 
-    success = @grid.move @link, :right
-    link_x, link_y = @grid.position_of @link
-    movable_block_x, movable_block_y = @grid.position_of @movable_block
-    block_x, block_y = @grid.position_of @block
+    game.request_link_direction :right
+    game.update
+    link_x, link_y = game.link_position
+    pushable_block_x, pushable_block_y = game.pushable_block_positions.first
+    block_x, block_y = game.block_positions.first
 
-    assert !success
-    assert !@link.pushed
+    assert !game.link_pushed
     assert_equal 1, link_x
     assert_equal 1, link_y
-    assert_equal 2, movable_block_x
-    assert_equal 1, movable_block_y
+    assert_equal 2, pushable_block_x
+    assert_equal 1, pushable_block_y
     assert_equal 3, block_x
     assert_equal 1, block_y
   end
 
   def test_pushed_set_properly
-    @grid.create @link, 1, 1
-    @grid.create @movable_block, 2, 1
+    game = Zelda::Logic::Game.new link_position: [1, 1], pushable_block_positions: [[2, 1]]
 
-    success = @grid.move @link, :right
+    game.request_link_direction :right
+    game.update
 
-    assert success
-    assert @link.pushed
+    assert game.link_pushed
 
-    success = @grid.move @link, :down
+    game.request_link_direction :down
+    game.update
 
-    assert success
-    assert !@link.pushed
+    assert !game.link_pushed
   end
 end
