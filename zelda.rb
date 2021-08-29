@@ -57,7 +57,7 @@ module Zelda
         Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles[1], SPRITE_SCALE, SPRITE_SCALE)]
       end
 
-      def movable_block_animation
+      def pushable_block_animation
         Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles.first, SPRITE_SCALE, SPRITE_SCALE)]
       end
 
@@ -75,15 +75,13 @@ module Zelda
 
     private_constant :MOVEMENT_SPEED
 
-    def initialize(grid, entity, animation)
-      Contracts.not_nil grid
-      Contracts.not_nil entity
+    def initialize(game, animation)
+      Contracts.not_nil game
       Contracts.not_nil animation
-      Contracts.is grid, Logic::Grid
+      Contracts.is game, Logic::Game
       Contracts.is animation, Graphics::Animation
 
-      @grid = grid
-      @entity = entity
+      @game = game
       @animation = animation
       @x, @y = target_position
     end
@@ -119,7 +117,7 @@ module Zelda
     end
 
     def target_position
-      x, y = @grid.position_of @entity
+      x, y = entity_position
       s = Resources::SPRITE_SIZE
 
       if x.nil? || y.nil?
@@ -145,35 +143,29 @@ module Zelda
 
   # LinkRendering is a rendering of the Link character.
   class LinkRendering < MovementRendering
-    def initialize(grid, entity)
-      Contracts.not_nil grid
-      Contracts.not_nil entity
-      Contracts.is grid, Logic::Grid
-      Contracts.is entity, Logic::Link
-
-      super grid, entity, Resources.link_animation
+    def initialize(game)
+      super game, Resources.link_animation
       @last_direction = :right
     end
 
     def update(requested_direction)
       Contracts.direction requested_direction
 
-      request_direction requested_direction
+      @last_direction = direction unless direction.nil?
       update_animation
       super()
+      @game.request_link_direction requested_direction unless moving || requested_direction.nil?
     end
 
     private
 
-    def request_direction(requested_direction)
-      return if moving || requested_direction.nil? || !@grid.move(@entity, requested_direction)
-
-      @last_direction = direction
+    def entity_position
+      @game.link_position
     end
 
     def update_animation
       sprite_prefix = if moving
-                        @entity.pushed ? 'push' : 'walk'
+                        @game.link_pushed ? 'push' : 'walk'
                       else
                         'idle'
                       end
@@ -184,16 +176,16 @@ module Zelda
 
   # A rendering of all immovable blocks.
   class BlocksRendering
-    def initialize(grid)
-      Contracts.not_nil grid
-      Contracts.is grid, Logic::Grid
+    def initialize(game)
+      Contracts.not_nil game
+      Contracts.is game, Logic::Game
 
-      @grid = grid
+      @game = game
       @animation = Resources.block_animation
     end
 
     def draw
-      @grid.position_of_all(Logic::Block).each do |x, y|
+      @game.block_positions.each do |x, y|
         draw_single x, y
       end
     end
@@ -208,30 +200,52 @@ module Zelda
     end
   end
 
+  # Rendering for a pushable block.
+  class PushableBlockRendering < MovementRendering
+    def initialize(game, entity_id)
+      Contracts.not_nil game
+      Contracts.not_nil entity_id
+      Contracts.is game, Logic::Game
+      Contracts.is entity_id, Integer
+
+      @entity_id = entity_id
+      super game, Resources.pushable_block_animation
+    end
+
+    private
+
+    def entity_position
+      @game.pushable_block_positions_hash[@entity_id]
+    end
+
+    def draw_single(x, y)
+      s = Resources::SPRITE_SIZE
+      x = x * s + s / 2
+      y = y * s + s / 2
+      @animation.draw x, y
+    end
+  end
+
   # The game window.
   class Application < Gosu::Window
     def initialize
-      window_size = Resources::SPRITE_SIZE * Logic::Grid::SIZE
+      window_size = Resources::SPRITE_SIZE * Logic::GRID_SIZE
       super window_size, window_size
       self.caption = 'Zelda'
 
-      @grid = Logic::Grid.new
-      @link = Logic::Link.new
-      @movable_block = Logic::MovableBlock.new
+      @game = Logic::Game.new link_position: [0, 0],
+                              block_positions: [[0, 1], [1, 1]],
+                              pushable_block_positions: [[2, 1]]
 
-      @grid.create @link, 0, 0
-      @grid.create Logic::Block.new, 0, 1
-      @grid.create Logic::Block.new, 1, 1
-      @grid.create @movable_block, 2, 1
-
-      @link_rendering = LinkRendering.new @grid, @link
-      @blocks_rendering = BlocksRendering.new @grid
-      @movable_block_rendering = MovementRendering.new @grid, @movable_block, Resources.movable_block_animation
+      @link_rendering = LinkRendering.new @game
+      @blocks_rendering = BlocksRendering.new @game
+      @pushable_block_rendering = PushableBlockRendering.new @game, @game.pushable_block_positions_hash.first.first
     end
 
     def update
+      @game.update
       @link_rendering.update requested_direction
-      @movable_block_rendering.update
+      @pushable_block_rendering.update
     end
 
     def requested_direction
@@ -249,7 +263,7 @@ module Zelda
     def draw
       @link_rendering.draw
       @blocks_rendering.draw
-      @movable_block_rendering.draw
+      @pushable_block_rendering.draw
     end
   end
 end

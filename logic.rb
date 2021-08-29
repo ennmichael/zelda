@@ -45,6 +45,10 @@ module Zelda
         @grid.position_of_all PushableBlock
       end
 
+      def pushable_block_positions_hash
+        @grid.positions_hash PushableBlock
+      end
+
       def request_link_direction(direction)
         Contracts.not_nil direction
         Contracts.direction direction
@@ -98,13 +102,13 @@ module Zelda
       end
     end
 
+    GRID_SIZE = 10
+
     # Grid of all game objects.
     class Grid
-      SIZE = 10
-
       def initialize
-        @grid = Array.new SIZE do
-          Array.new SIZE
+        @grid = Array.new GRID_SIZE do
+          Array.new GRID_SIZE
         end
       end
 
@@ -112,8 +116,8 @@ module Zelda
       def create(obj, x, y)
         Contracts.not_nil obj
         Contracts.position x, y
-        Contracts.includes x, (0..SIZE)
-        Contracts.includes y, (0..SIZE)
+        Contracts.includes x, (0..GRID_SIZE)
+        Contracts.includes y, (0..GRID_SIZE)
 
         @grid[y][x] = obj
       end
@@ -165,7 +169,14 @@ module Zelda
       end
 
       def within_bounds(x, y)
-        (0...SIZE).include?(x) && (0...SIZE).include?(y)
+        (0...GRID_SIZE).include?(x) && (0...GRID_SIZE).include?(y)
+      end
+
+      # Returns a hash mapping object id's of the given class to their respective positions.
+      def positions_hash(cls)
+        entities.select { |e| e.obj.is_a? cls }
+                .map { |e| [e.obj.object_id, [e.x, e.y]] }
+                .to_h
       end
 
       private
@@ -184,6 +195,8 @@ module Zelda
       private_constant :Entity
     end
 
+    private_constant :Grid
+
     # The Link entity. Link is the main character in the game.
     class Link
       attr_accessor :pushed
@@ -193,6 +206,8 @@ module Zelda
       end
     end
 
+    private_constant :Link
+
     # The Zol entity. Zol is the enemy in the game.
     class Zol
       def movable?
@@ -200,9 +215,13 @@ module Zelda
       end
     end
 
+    private_constant :Zol
+
     # A block in the terrain.
     class Block
     end
+
+    private_constant :Block
 
     # A block in the terrain which can be pushed.
     class PushableBlock
@@ -214,6 +233,8 @@ module Zelda
         true
       end
     end
+
+    private_constant :PushableBlock
 
     module Updaters
       # Updater for Link's movement.
@@ -271,5 +292,7 @@ module Zelda
         end
       end
     end
+
+    private_constant :Updaters
   end
 end
