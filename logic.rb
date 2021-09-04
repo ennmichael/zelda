@@ -117,7 +117,7 @@ module Zelda
       end
 
       def zol_paused
-        @zol.paused
+        @zol_updater.paused
       end
 
       def zol_paused=(value)

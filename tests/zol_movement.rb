@@ -65,5 +65,6 @@ class ZolMovementTests < Minitest::Test
     x, y = game.zol_position
     assert_equal 0, x
     assert_equal 0, y
+    assert game.zol_paused
   end
 end

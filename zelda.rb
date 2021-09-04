@@ -53,6 +53,12 @@ module Zelda
                                 push_down: [push_down0, push_down1]
       end
 
+      def zol_animation
+        zol_tiles = Gosu::Image.load_tiles('media/zol.bmp', -2, -1)
+        sprites = zol_tiles.map { |tile| Graphics::Sprite.new tile, SPRITE_SCALE, SPRITE_SCALE, 250 }
+        Graphics::Animation.new default: sprites
+      end
+
       def block_animation
         Graphics::Animation.new default: [Graphics::Sprite.new(block_tiles[1], SPRITE_SCALE, SPRITE_SCALE)]
       end
@@ -174,6 +180,41 @@ module Zelda
     end
   end
 
+  # A rendering of the Zol character.
+  class ZolRendering < MovementRendering
+    PAUSE_DURATION = 800
+
+    private_constant :PAUSE_DURATION
+
+    def initialize(game)
+      super game, Resources.zol_animation
+      @last_update = Gosu.milliseconds
+      @remaining_pause_duration = PAUSE_DURATION
+    end
+
+    def update
+      now = Gosu.milliseconds
+      delta = now - @last_update
+      @last_update = now
+      @remaining_pause_duration -= delta
+
+      if @remaining_pause_duration <= 0
+        @remaining_pause_duration = PAUSE_DURATION
+        @game.zol_paused = false
+      else
+        @game.zol_paused = true unless @game.zol_paused
+      end
+
+      super()
+    end
+
+    private
+
+    def entity_position
+      @game.zol_position
+    end
+  end
+
   # A rendering of all immovable blocks.
   class BlocksRendering
     def initialize(game)
@@ -234,10 +275,12 @@ module Zelda
       self.caption = 'Zelda'
 
       @game = Logic::Game.new link_position: [0, 0],
+                              zol_position: [5, 5],
                               block_positions: [[0, 1], [1, 1]],
                               pushable_block_positions: [[2, 1]]
 
       @link_rendering = LinkRendering.new @game
+      @zol_rendering = ZolRendering.new @game
       @blocks_rendering = BlocksRendering.new @game
       @pushable_block_rendering = PushableBlockRendering.new @game, @game.pushable_block_positions_hash.first.first
     end
@@ -245,6 +288,7 @@ module Zelda
     def update
       @game.update
       @link_rendering.update requested_direction
+      @zol_rendering.update
       @pushable_block_rendering.update
     end
 
@@ -262,6 +306,7 @@ module Zelda
 
     def draw
       @link_rendering.draw
+      @zol_rendering.draw
       @blocks_rendering.draw
       @pushable_block_rendering.draw
     end
