@@ -72,7 +72,8 @@ module Zelda
 
           @zol = Zol.new
           @grid.create @zol, x, y
-          @updaters << Updaters::ZolMovementUpdater.new(@grid, @zol)
+          @zol_updater = Updaters::ZolMovementUpdater.new(@grid, @zol)
+          @updaters << @zol_updater
         end
 
         create_blocks = lambda do |block_type, positions|
@@ -113,6 +114,17 @@ module Zelda
 
       def pushable_block_positions_hash
         @grid.positions_hash PushableBlock
+      end
+
+      def zol_paused
+        @zol.paused
+      end
+
+      def zol_paused=(value)
+        Contracts.not_nil value
+        Contracts.bool value
+
+        @zol_updater.paused = value
       end
 
       def request_link_direction(direction)
@@ -295,6 +307,8 @@ module Zelda
 
       # Updater for Zol's movement.
       class ZolMovementUpdater
+        attr_accessor :paused
+
         def initialize(grid, zol)
           Contracts.not_nil grid
           Contracts.not_nil zol
@@ -303,9 +317,12 @@ module Zelda
 
           @grid = grid
           @zol = zol
+          self.paused = false
         end
 
         def update
+          return false if paused
+
           @direction = next_direction
           @grid.move @zol, @direction
         end

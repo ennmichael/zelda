@@ -55,4 +55,15 @@ class ZolMovementTests < Minitest::Test
     assert_equal 0, x
     assert_equal 0, y
   end
+
+  def test_doesnt_move_if_paused
+    game = Zelda::Logic::Game.new zol_position: [0, 0]
+    game.zol_paused = true
+
+    game.update
+
+    x, y = game.zol_position
+    assert_equal 0, x
+    assert_equal 0, y
+  end
 end
