@@ -182,29 +182,12 @@ module Zelda
 
   # A rendering of the Zol character.
   class ZolRendering < MovementRendering
-    PAUSE_DURATION = 800
-
-    private_constant :PAUSE_DURATION
-
     def initialize(game)
       super game, Resources.zol_animation
-      @last_update = Gosu.milliseconds
-      @remaining_pause_duration = PAUSE_DURATION
     end
 
     def update
-      now = Gosu.milliseconds
-      delta = now - @last_update
-      @last_update = now
-      @remaining_pause_duration -= delta
-
-      if @remaining_pause_duration <= 0
-        @remaining_pause_duration = PAUSE_DURATION
-        @game.zol_paused = false
-      else
-        @game.zol_paused = true unless @game.zol_paused
-      end
-
+      @game.zol_paused = moving
       super()
     end
 
