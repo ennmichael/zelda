@@ -6,7 +6,6 @@ require_relative 'util'
 module Zelda
   # Core game logic. This is the domain layer, and it does not know about graphics or input handling.
   module Logic
-    # Entity provides useful class methods for working with entities.
     class << self
       def movable?(obj)
         Util.check obj, :movable?

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Zelda
-  # TODO: Perhaps I should split the Logic contracts (direction) from the general purpose contracts (is, bool)
+  # TODO: Perhaps I should split the Logic contracts (position, direction) from the general purpose contracts (is, bool)
 
   # Formal development contracts.
   class Contracts
